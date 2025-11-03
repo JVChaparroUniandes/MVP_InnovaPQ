@@ -3,11 +3,12 @@ import uuid
 import json
 from botocore.exceptions import ClientError
 # Importamos la función de inicialización y variables
-from aws_client import (
+from Servicios.aws_client import (
     init_aws_clients,
     AWS_S3_BUCKET_NAME, 
     AWS_SQS_QUEUE_URL
 )
+
 
 # --- Configuración de la Página ---
 st.set_page_config(
