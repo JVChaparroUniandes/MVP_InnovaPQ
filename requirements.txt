@@ -1,4 +1,5 @@
 streamlit
-boto3
-uuid
+pandas
 json
+openpyxl
+boto3
