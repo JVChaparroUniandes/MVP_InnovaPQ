@@ -89,5 +89,12 @@
         "ArmonicosITiempo":"out/Armónicas en Corrientes/series_tiempo/datd-tdd.png",
         "ArmonicosITabla":"out/Armónicas en Corrientes/tablas/descriptivos_thdi.xlsx",
         "ArmonicosITablaP95":"out/Armónicas en Corrientes/tablas/armonicas_corriente_p95_il.xlsx"
+    },
+    "Comentarios":{
+        "Notas":"Notas generadas por el modelo de aws",
+        "Importante":"Comentarios importantes generados por aws",
+        "Precaución":"Comentarios de precaución generados por aws"
+
     }
+
 }   
