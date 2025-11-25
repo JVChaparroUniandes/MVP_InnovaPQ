@@ -1,24 +1,25 @@
 import streamlit as st
 from Modelos import Tabla,Imagenes
-from Servicio import Data
 
 
-Servicio=Data()
-Datos=Servicio.LeerDatos()
 
-def FrecuenciaCodigoRed():
+
+def FrecuenciaCodigoRed(Servicio,Datos):
+    
+
+
     with st.container():
 
         rutaTablaDescriptivasFrecuencia=Datos["Frecuencia"]["FrecuenciaTabla"]
-        TablaDescriptivasFrecuencia=Tabla("Descripción Frecuencia",rutaTablaDescriptivasFrecuencia)
+        TablaDescriptivasFrecuencia=Tabla("Descripción Frecuencia",rutaDatos=rutaTablaDescriptivasFrecuencia,servicio=Servicio)
         TablaDescriptivasFrecuencia.construirContenedor()
 
         rutaImagenFrecuencia=Datos["Frecuencia"]["FrecuenciaSerieTiempo"]
-        ImagenFrecuencia=Imagenes("Frecuencia Serie de Tiempo",rutaImagenFrecuencia)
+        ImagenFrecuencia=Imagenes("Frecuencia Serie de Tiempo",rutaDatos=rutaImagenFrecuencia,servicio=Servicio)
         ImagenFrecuencia.ConstruirImagen()
 
         rutaImagenFrecuenciaDistr=Datos["Frecuencia"]["FrecuenciaDistr"]
-        ImagenFrecuenciaDistr=Imagenes("Distribución de Frecuencia",rutaImagenFrecuenciaDistr)
+        ImagenFrecuenciaDistr=Imagenes("Distribución de Frecuencia",rutaDatos=rutaImagenFrecuenciaDistr,servicio=Servicio)
         ImagenFrecuenciaDistr.ConstruirImagen()
 
             

@@ -13,40 +13,49 @@ from codigoRed.FlickerCodigoRed import FlickerCodigoRed
 from codigoRed.ArmonicosVoltajeCodigoRed import ArmonicosVoltaje
 from codigoRed.ArmonicosCorrienteCodigoRed import ArmonicosCorriente
 
-def Ventana(MostrarVista):
+def Ventana(MostrarVista,Servicio,Datos):
     match MostrarVista:
         case "Descripcion":
-            return Descripcion()
+            return Descripcion(Servicio,Datos)
         case "Cumplimiento":
-            return Cumplimiento()
+            return Cumplimiento(Servicio,Datos)
         case "Resumen Sistema":
-            return ResumenCodigoRed()
+            return ResumenCodigoRed(Servicio,Datos)
         case "Potencia":
-            return PotenciaCodigoRed()
+            return PotenciaCodigoRed(Servicio,Datos)
         case "Voltajes":
-            return VoltajesCodigoRed()
+            return VoltajesCodigoRed(Servicio,Datos)
         case "Corrientes":
-            return CorrientesCodigoRed()
+            return CorrientesCodigoRed(Servicio,Datos)
         case "Desbalances":
-            return DesbalancesCodigoRed()
+            return DesbalancesCodigoRed(Servicio,Datos)
         case "Frecuencia":
-            return FrecuenciaCodigoRed()
+            return FrecuenciaCodigoRed(Servicio,Datos)
         case "Flicker":
-            return FlickerCodigoRed()
+            return FlickerCodigoRed(Servicio,Datos)
         case "Armonicos Voltaje":
-            return ArmonicosVoltaje()
+            return ArmonicosVoltaje(Servicio,Datos)
         case "Armonicos Corriente":
-            return ArmonicosCorriente()
+            return ArmonicosCorriente(Servicio,Datos)
         
 
+@st.cache_resource
+def get_servicio_aws(report_id):
+    print("Conectando a AWS...")
+    return Data(report_id)
 
-Servicio=Data()
-Datos=Servicio.LeerDatos()
+@st.cache_data
+def get_diccionario_rutas(_Servicio):
+    print("Escaneando bucket...")
+    return _Servicio.obtener_rutas_actualizadas()
+
+Servicio_aws=get_servicio_aws("report1")
+Datos=get_diccionario_rutas(_Servicio=Servicio_aws)
 
 
 
    
-def CodigoRed(report_id):
+def CodigoRed(report_id,Servicio=Servicio_aws,Datos=Datos):
 # --- Lógica Principal de la Aplicación ---
     if 'mostrar_vista' not in st.session_state:
         st.session_state.mostrar_vista = "Descripcion"
@@ -78,19 +87,25 @@ def CodigoRed(report_id):
             
         with col2:
             with st.container():
-                Ventana(MostrarVista=st.session_state.mostrar_vista)
+                Ventana(MostrarVista=st.session_state.mostrar_vista,Servicio=Servicio,Datos=Datos)
         with col3:
             st.subheader("Comentarios")
             with st.container():
-                Notas=Comentarios(titulo="Notas",comentario=Datos["Comentarios"]["Notas"],key="Notas")
-                NotasReporte=Notas.BloqueComentario()
+                rutaComentarios=Datos["Comentarios"]["CodigoRed"]
+
+                SeccionNotas=Comentarios(titulo="Notas",seccion_json="nota",rutaDatos=rutaComentarios,servicio=Servicio)
+                NotasReporte=SeccionNotas.render()
                 NotasReporte
-                Importante=Comentarios(titulo="Importante",comentario="Hola",key="Importante")
-                ImportanteReporte=Importante.BloqueComentario()
+
+                SeccionImportante=Comentarios(titulo="Importante",seccion_json="importante",rutaDatos=rutaComentarios,servicio=Servicio)
+                ImportanteReporte=SeccionImportante.render()
                 ImportanteReporte
-                Precaucion=Comentarios(titulo="Precacución",comentario="Hola",key="Precaución")
-                PrecaucionReporte=Precaucion.BloqueComentario()
+
+                SeccionPrecaucion=Comentarios(titulo="Precaución",seccion_json="precaucion",rutaDatos=rutaComentarios,servicio=Servicio)
+                PrecaucionReporte=SeccionPrecaucion.render()
                 PrecaucionReporte
+
+
                 if st.button("Generar PDF con comentarios actualizados"):
                     with st.spinner("Generando PDF..."):
                         Servicio.GuardarDatos(

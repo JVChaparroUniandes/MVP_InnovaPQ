@@ -1,37 +1,34 @@
 import streamlit as st
 from Modelos import Descripciones,Imagenes
-from Servicio import Data
 
 
-Servicio=Data()
-Datos=Servicio.LeerDatos()
 
 
-def Descripcion():
 
+def Descripcion(Servicio,Datos):
 
     with st.container():
         rutaCentroCarga=Datos["Contexto"]["Descripcion"]
-        DescripcionCentroCarga=Descripciones(rutaCentroCarga)
+        DescripcionCentroCarga=Descripciones(rutaDatos=rutaCentroCarga,servicio=Servicio)
         DescripcionCentroCarga.ConstruirContenedor()
     # --- Diagrama Unifilar---
     with st.container():
         st.subheader("Diagrama Unifilar")
         rutaUnifilar=Datos["Unifilar"]
-        ImagenUnifilar=Imagenes("",rutaUnifilar)
+        ImagenUnifilar=Imagenes("",rutaDatos=rutaUnifilar,servicio=Servicio)
         ImagenUnifilar.ConstruirImagen()
     # --- Información General ---
     with st.expander(label="Datos de medición"):
         rutaDatosMedicion=Datos["Contexto"]["Medicion"]
-        DescripcionDatos=Descripciones(rutaDatosMedicion)
+        DescripcionDatos=Descripciones(rutaDatos=rutaDatosMedicion,servicio=Servicio)
         DescripcionDatos.ConstruirContenedor()
 
     with st.expander(label="Información del centro de carga"):
         rutaInfoCarga=Datos["Contexto"]["Informacion"]
-        DescripcionInfoCarga=Descripciones(rutaInfoCarga)
+        DescripcionInfoCarga=Descripciones(rutaDatos=rutaInfoCarga,servicio=Servicio)
         DescripcionInfoCarga.ConstruirContenedor()
 
     with st.expander(label="Información del medidor"):
         rutaMedidor=Datos["Contexto"]["Medidor"]
-        DescripcionMedidor=Descripciones(rutaMedidor)
+        DescripcionMedidor=Descripciones(rutaDatos=rutaMedidor,servicio=Servicio)
         DescripcionMedidor.ConstruirContenedor()
