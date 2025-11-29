@@ -7,7 +7,7 @@ def DesbalancesCodigoRed(Servicio,Datos):
 
 
     with st.container():
-        with st.container(horizontal=True):
+        with st.container():
             with st.container():
                 rutaTablaDescriptivasDesbalanceV=Datos["Desbalance"]["DesbalanceTablaDescriptivaVoltaje"]
                 TablaDescriptivasDesbalanceV=Tabla("Descripción Desbalances Voltaje",rutaDatos=rutaTablaDescriptivasDesbalanceV,servicio=Servicio)

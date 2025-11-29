@@ -1,6 +1,6 @@
 import streamlit as st
 from codigoRed.codigoRed import CodigoRed
-from cargaDatos.frontPage import CargarDatos
+from cargaDatos.cargaDatos2 import CargarDatos2
 
 # --- Configuración de la Página ---
 st.set_page_config(
@@ -18,6 +18,6 @@ pagina=st.query_params.get("pagina")
 if pagina=="codigored":
     CodigoRed(report_id)
 elif pagina=="cargar":
-    CargarDatos()
+    CargarDatos2()
 else:
     st.write("No Hay pagina especificada")

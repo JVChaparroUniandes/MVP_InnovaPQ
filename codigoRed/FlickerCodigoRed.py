@@ -9,7 +9,7 @@ def FlickerCodigoRed(Servicio,Datos):
 
     with st.container():
         st.subheader("Flicker")
-        with st.container(horizontal=True):
+        with st.container():
                 with st.container():
                     rutaTablaDescriptivasFlicker=Datos["Flicker"]["FlickerTablaPst"]
                     TablaDescriptivasFlicker=Tabla("Descripción PST",rutaDatos=rutaTablaDescriptivasFlicker,servicio=Servicio)

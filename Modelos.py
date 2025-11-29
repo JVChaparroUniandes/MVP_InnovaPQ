@@ -11,9 +11,10 @@ class Tabla:
         self.servicio=servicio
 
     def construirContenedor(self):
-        #df=pd.read_excel(io=self.rutaDatos,index_col=0)
         df=self.servicio.descargar_archivo_s3(self.rutaDatos)
-        #df=df.round(decimals=1)
+        if df is None:
+            st.error("No se encontraron datos para esta Tabla.")
+            return
         st.subheader(self.titulo)
         st.table(data=df)
 
@@ -24,18 +25,19 @@ class Descripciones:
     
     def ConstruirContenedor(self):
         df=self.servicio.descargar_archivo_s3(self.rutaDatos)
-        df_datos = df.iloc[1:]
-        st.subheader(df.iloc[0,0])
-        for index,row in df_datos.iterrows():
-            with st.container(horizontal=True):
-                col1,col2=st.columns([0.3,0.7])
-                with col1:
-                    st.markdown(
-                        f'<p style="font-size: 18px; font-weight: bold;color:black;">{str(row[0])} </p>',
-                        unsafe_allow_html=True
-                        )
-                with col2:
-                    st.write(str(row[1]))
+        try:
+            for index,row in df.iterrows():
+                with st.container():
+                    col1,col2=st.columns([0.3,0.7])
+                    with col1:
+                        st.markdown(
+                            f'<p style="font-size: 18px; font-weight: bold;color:black;">{str(row[0])} </p>',
+                            unsafe_allow_html=True
+                            )
+                    with col2:
+                        st.write(str(row[1]))
+        except Exception as e:
+            st.error(f"Error al construir descripciones. Revisa el ID del reporte.")
                 
 class Imagenes:
     def __init__(self,titulo,rutaDatos,servicio):
@@ -49,7 +51,11 @@ class Imagenes:
                 )
         col1, col2, col3 = st.columns([0.1,0.8,0.1])
         with col2:
-            st.image(image=self.servicio.descargar_archivo_s3(self.rutaDatos)) 
+            imagen=self.servicio.descargar_archivo_s3(self.rutaDatos)
+            if not imagen:
+                st.error("No se pudo cargar el archivo de Imagen.")
+                return
+            st.image(image=imagen) 
     
 
 class Comentarios:

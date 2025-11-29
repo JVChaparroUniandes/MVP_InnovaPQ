@@ -45,17 +45,19 @@ def get_servicio_aws(report_id):
     return Data(report_id)
 
 @st.cache_data
-def get_diccionario_rutas(_Servicio):
+def get_diccionario_rutas(_Servicio,nombre_carpeta):
     print("Escaneando bucket...")
     return _Servicio.obtener_rutas_actualizadas()
 
-Servicio_aws=get_servicio_aws("report1")
-Datos=get_diccionario_rutas(_Servicio=Servicio_aws)
+
 
 
 
    
-def CodigoRed(report_id,Servicio=Servicio_aws,Datos=Datos):
+def CodigoRed(report_id):
+
+    Servicio=get_servicio_aws(report_id)
+    Datos=get_diccionario_rutas(_Servicio=Servicio,nombre_carpeta=report_id)
 # --- Lógica Principal de la Aplicación ---
     if 'mostrar_vista' not in st.session_state:
         st.session_state.mostrar_vista = "Descripcion"
@@ -89,7 +91,7 @@ def CodigoRed(report_id,Servicio=Servicio_aws,Datos=Datos):
             with st.container():
                 Ventana(MostrarVista=st.session_state.mostrar_vista,Servicio=Servicio,Datos=Datos)
         with col3:
-            st.subheader("Comentarios")
+            
             with st.container():
                 rutaComentarios=Datos["Comentarios"]["CodigoRed"]
 

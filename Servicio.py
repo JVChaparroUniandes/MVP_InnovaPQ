@@ -8,7 +8,7 @@ import openpyxl
 
 
 class Data:
-    def __init__(self,folder):
+    def __init__(self,folder="NA"):
         self.accessKeyID=st.secrets["aws"]["aws_access_key_id"]
         self.SecretAccessKey=st.secrets["aws"]["aws_secret_access_key"]
         self.Region=st.secrets["aws"]["region_name"]
