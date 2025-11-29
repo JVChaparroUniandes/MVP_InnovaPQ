@@ -10,14 +10,15 @@ st.set_page_config(
 
 
 # Lee el query param "report_id" de la URL
-# Ejemplo: https://mi-app-review.com/?report_id=123-456-789&pagina=codigored
+# Ejemplo: https://mi-app-review.com/?report_id=123-456-789&pagina=codigo_red
 report_id = st.query_params.get("report_id")
 pagina=st.query_params.get("pagina")
 
 
-if pagina=="codigored":
+if pagina=="codigo_red":
     CodigoRed(report_id)
 elif pagina=="cargar":
     CargarDatos2()
 else:
-    st.write("No Hay pagina especificada")
+    # Por defecto, mostrar la sección de carga
+    CargarDatos2()

@@ -108,13 +108,90 @@ def CodigoRed(report_id):
                 PrecaucionReporte
 
 
-                if st.button("Generar PDF con comentarios actualizados"):
-                    with st.spinner("Generando PDF..."):
-                        Servicio.GuardarDatos(
-                            NotasReporte,
-                            ImportanteReporte,
-                            PrecaucionReporte
-                        )
+                # Inicializar estado del modal
+                if 'mostrar_modal_pdf' not in st.session_state:
+                    st.session_state.mostrar_modal_pdf = False
+                if 'pdf_enviado' not in st.session_state:
+                    st.session_state.pdf_enviado = False
+                if 'email_pdf_enviado' not in st.session_state:
+                    st.session_state.email_pdf_enviado = ""
+                
+                # Mostrar mensaje de éxito si ya se envió
+                if st.session_state.pdf_enviado:
+                    st.success(f"✅ **Solicitud de generación de PDF enviada exitosamente**\n\n"
+                              f"El reporte PDF con los comentarios actualizados será generado y enviado a:\n"
+                              f"**{st.session_state.email_pdf_enviado}**\n\n"
+                              f"📬 Recibirá el correo con el PDF en los próximos minutos.")
+                    if st.button("Cerrar", key="cerrar_mensaje_pdf"):
+                        st.session_state.pdf_enviado = False
+                        st.session_state.email_pdf_enviado = ""
+                        st.rerun()
+                
+                # Botón para abrir modal
+                if not st.session_state.pdf_enviado:
+                    if st.button("Generar PDF con comentarios actualizados"):
+                        st.session_state.mostrar_modal_pdf = True
+                        st.rerun()
+                
+                # Modal para solicitar email
+                if st.session_state.mostrar_modal_pdf and not st.session_state.pdf_enviado:
+                    with st.container():
+                        st.info("📧 Por favor, ingrese el correo electrónico al cual desea enviar el reporte PDF.")
+                        
+                        with st.form(key="form_modal_pdf", clear_on_submit=False):
+                            email_pdf = st.text_input(
+                                "Correo Electrónico",
+                                placeholder="ejemplo@correo.com",
+                                type="default"
+                            )
+                            
+                            col_btn1, col_btn2 = st.columns(2)
+                            with col_btn1:
+                                enviar_btn = st.form_submit_button("✅ Enviar", use_container_width=True, type="primary")
+                            with col_btn2:
+                                cancelar_btn = st.form_submit_button("❌ Cancelar", use_container_width=True)
+                            
+                            if cancelar_btn:
+                                st.session_state.mostrar_modal_pdf = False
+                                st.rerun()
+                            
+                            if enviar_btn:
+                                # Validar email
+                                if not email_pdf or email_pdf.strip() == "":
+                                    st.error("Por favor, ingrese un correo electrónico válido.")
+                                elif "@" not in email_pdf:
+                                    st.error("Por favor, ingrese un correo electrónico válido.")
+                                else:
+                                    try:
+                                        # Guardar comentarios actualizados
+                                        Servicio.GuardarDatos(
+                                            NotasReporte,
+                                            ImportanteReporte,
+                                            PrecaucionReporte
+                                        )
+                                        
+                                        # Construir mensaje para SQS PDF
+                                        mensaje_pdf_sqs = {
+                                            "report_id": report_id,
+                                            "bucket": Servicio.bucket,
+                                            "region": Servicio.Region,
+                                            "report_type": "codigo_red",
+                                            "email": email_pdf.strip()
+                                        }
+                                        
+                                        # Obtener URL de la cola PDF desde secrets
+                                        queue_url_pdf = st.secrets["aws"]["sqs_pdf_queue_url"]
+                                        
+                                        # Enviar mensaje a SQS
+                                        Servicio.enviar_mensaje_sqs(queue_url_pdf, mensaje_pdf_sqs)
+                                        
+                                        # Cerrar modal y marcar como enviado
+                                        st.session_state.mostrar_modal_pdf = False
+                                        st.session_state.pdf_enviado = True
+                                        st.session_state.email_pdf_enviado = email_pdf.strip()
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"❌ Error al enviar la solicitud: {str(e)}\n\nPor favor, intente nuevamente.")
 
                 
 

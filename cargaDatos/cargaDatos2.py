@@ -2,7 +2,18 @@ import streamlit as st
 import uuid
 import pandas as pd
 import io
-from Servicio import Data 
+import json
+import re
+from Servicio import Data
+
+# Mapeo de perfiles: nombre bonito -> key técnica
+PERFILES_MEDIDOR = {
+    "Schneider ION-9000": "schneider_ion9000",
+    "ACUVIM-EL": "acuvim_el",
+    "ACUVIM-2W": "acuvim_2w",
+    "SEL-735": "sel_735",
+    "Circutor": "circutor"
+} 
 
 # --- 1. INSTANCIA DE SERVICIO (Recurso Compartido) ---
 @st.cache_resource
@@ -52,7 +63,10 @@ def CargarDatos2():
         with tab2:
             st.subheader("Medidor")
             c1, c2, c3 = st.columns(3)
-            datos_formulario["Marca"] = c1.selectbox("Marca", ["Schneider ION-9000", "Otros"])
+            # Perfil del medidor (reemplaza "Marca")
+            perfil_seleccionado = c1.selectbox("Perfil del Medidor", list(PERFILES_MEDIDOR.keys()))
+            datos_formulario["Marca"] = perfil_seleccionado  # Guardamos el nombre bonito para las tablas
+            datos_formulario["_perfil_tecnico"] = PERFILES_MEDIDOR[perfil_seleccionado]  # Guardamos el valor técnico para SQS
             datos_formulario["Clase"] = c2.selectbox("Clase", ["A", "S"])
             datos_formulario["Tasa muestreo"] = c3.selectbox("Tasa", ["1 min", "5 min", "10 min", "15 min"])
 
@@ -110,7 +124,7 @@ def CargarDatos2():
             st.warning("⚠️ Todos los archivos son obligatorios.")
             
             st.subheader("Carpeta: raw_data")
-            archivos_formulario["main_file"] = st.file_uploader("Archivo Principal (CSV/PQDIF)", type=["csv", "pqd", "pqdif"])
+            archivos_formulario["main_file"] = st.file_uploader("Archivo Principal (CSV/PQDIF/XLSX)", type=["csv", "pqd", "pqdif", "xlsx"])
             
             st.divider()
             st.subheader("Carpeta: input")
@@ -126,11 +140,61 @@ def CargarDatos2():
     # ==========================================
     # 2. LÓGICA DE PROCESAMIENTO Y CARGA
     # ==========================================
+    
+    # Inicializar estados del modal
+    if 'mostrar_modal_email' not in st.session_state:
+        st.session_state.mostrar_modal_email = False
+    if 'email_confirmado' not in st.session_state:
+        st.session_state.email_confirmado = None
+    if 'procesar_carga' not in st.session_state:
+        st.session_state.procesar_carga = False
+    
+    # Modal para confirmar/cambiar email (se muestra después de validación)
+    if st.session_state.mostrar_modal_email and not st.session_state.procesar_carga:
+        st.info("📧 Por favor, confirme o ingrese el correo electrónico al cual desea enviar el reporte.")
+        
+        with st.form(key="form_modal_email_carga", clear_on_submit=False):
+            # Prellenar con el email del formulario si existe
+            email_prellenado = datos_formulario.get("Correo Electrónico", "")
+            email_envio = st.text_input(
+                "Correo Electrónico para envío del reporte",
+                value=email_prellenado,
+                placeholder="ejemplo@correo.com",
+                type="default"
+            )
+            
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                confirmar_btn = st.form_submit_button("✅ Confirmar y Procesar", use_container_width=True, type="primary")
+            with col_btn2:
+                cancelar_btn = st.form_submit_button("❌ Cancelar", use_container_width=True)
+            
+            if cancelar_btn:
+                st.session_state.mostrar_modal_email = False
+                st.session_state.email_confirmado = None
+                st.session_state.procesar_carga = False
+                st.rerun()
+            
+            if confirmar_btn:
+                # Validar email
+                if not email_envio or email_envio.strip() == "":
+                    st.error("Por favor, ingrese un correo electrónico válido.")
+                elif "@" not in email_envio:
+                    st.error("Por favor, ingrese un correo electrónico válido.")
+                else:
+                    st.session_state.email_confirmado = email_envio.strip()
+                    st.session_state.mostrar_modal_email = False
+                    st.session_state.procesar_carga = True
+                    st.rerun()
+    
     if submit_button:
         
         # A. VALIDACIÓN ESTRICTA
         errores = []
         for campo, valor in datos_formulario.items():
+            # Ignorar campos internos que empiezan con _
+            if campo.startswith("_"):
+                continue
             if not valor or str(valor).strip() == "": errores.append(campo)
         
         for nombre_archivo, objeto_archivo in archivos_formulario.items():
@@ -139,7 +203,20 @@ def CargarDatos2():
         if errores:
             st.error(f"❌ Faltan los siguientes campos obligatorios: {', '.join(errores)}")
             return 
-
+        
+        # Si pasa validación, mostrar modal para confirmar email
+        st.session_state.mostrar_modal_email = True
+        st.rerun()
+    
+    # Procesar carga solo si el email está confirmado y se debe procesar
+    if st.session_state.procesar_carga and st.session_state.email_confirmado:
+        email_final = st.session_state.email_confirmado
+        
+        # Limpiar estados
+        st.session_state.email_confirmado = None
+        st.session_state.procesar_carga = False
+        st.session_state.mostrar_modal_email = False
+        
         # B. PREPARACIÓN DE CARPETAS S3
         report_uuid = str(uuid.uuid4())
         prefix_root = f"report{report_uuid}/"
@@ -162,17 +239,15 @@ def CargarDatos2():
                 # ---------------------------------------------------------
                 # PASO 2: Subir Archivos Físicos a "input"
                 # ---------------------------------------------------------
-                # Diagrama
+                # Diagrama - siempre se guarda como diagrama_unifilar.png
                 file_diag = archivos_formulario["Diagrama Unifilar"]
                 file_diag.seek(0)
-                ext_diag = file_diag.name.split('.')[-1]
-                client.upload_fileobj(file_diag, bucket, f"{prefix_input}diagrama_unifilar.{ext_diag}")
+                client.upload_fileobj(file_diag, bucket, f"{prefix_input}diagrama_unifilar.png")
                 
-                # Sello
+                # Sello - siempre se guarda como stamp.png
                 file_stamp = archivos_formulario["Sello"]
                 file_stamp.seek(0)
-                ext_stamp = file_stamp.name.split('.')[-1]
-                client.upload_fileobj(file_stamp, bucket, f"{prefix_input}sello.{ext_stamp}")
+                client.upload_fileobj(file_stamp, bucket, f"{prefix_input}stamp.png")
 
                 # ---------------------------------------------------------
                 # PASO 3: GENERACIÓN DE EXCELS (Tablas 1, 2, 3, 4)
@@ -223,11 +298,79 @@ def CargarDatos2():
                     "Fecha de medición final": datos_formulario["Fecha de medición final"]
                 })
 
+                # ---------------------------------------------------------
+                # PASO 4: ENVIAR MENSAJE A SQS PARA PROCESAMIENTO
+                # ---------------------------------------------------------
+                status.write("📨 Enviando mensaje a la cola de procesamiento...")
+                
+                # Función para extraer tensión nominal (número y unidad)
+                def extraer_tension_nominal(tension_str):
+                    """
+                    Extrae el número y la unidad de una cadena como "34.75 kV" o "34,75 kV"
+                    Retorna: (valor_numerico, unidad) o (None, None) si no se puede parsear
+                    """
+                    if not tension_str or tension_str.strip() == "":
+                        return None, None
+                    
+                    # Reemplazar comas por puntos
+                    tension_limpia = tension_str.replace(",", ".")
+                    
+                    # Buscar patrón: número (puede tener decimales) seguido de unidad
+                    match = re.match(r'([\d.]+)\s*([a-zA-Z]+)', tension_limpia.strip())
+                    if match:
+                        try:
+                            valor = float(match.group(1))
+                            unidad = match.group(2)
+                            return valor, unidad
+                        except ValueError:
+                            return None, None
+                    return None, None
+                
+                # Extraer tensión nominal de "Tensión de punto de medición"
+                tension_valor, tension_unidad = extraer_tension_nominal(datos_formulario["Tensión de punto de medición"])
+                
+                if tension_valor is None:
+                    raise ValueError("No se pudo extraer la tensión nominal del punto de medición. Verifique el formato.")
+                
+                # Construir mensaje para SQS
+                # input_key debe incluir la ruta raw_data/ ya que el report_id tiene el prefijo report{uuid}
+                input_key_path = f"{file_main.name}"
+                
+                # Mapear report_base_url según el modo (dev/prod)
+                mode = st.secrets["aws"].get("mode", "dev")
+                if mode == "dev":
+                    report_base_url = "http://localhost:8501"
+                else:  # prod
+                    # Por ahora usar el mismo, pero se puede configurar en secrets
+                    report_base_url = st.secrets["aws"].get("report_base_url", "http://localhost:8501")
+                
+                mensaje_sqs = {
+                    "report_id": f"report{report_uuid}",
+                    "bucket": bucket,
+                    "region": Servicio.Region,
+                    "input_key": input_key_path,
+                    "img_format": "png",
+                    "dpi": 200,
+                    "output_mode": "s3",
+                    "email": email_final,  # Usar el email confirmado del modal
+                    "report_base_url": report_base_url,
+                    "nominal_voltage": tension_valor,
+                    "nominal_voltage_unit": tension_unidad,
+                    "profile": datos_formulario["_perfil_tecnico"]
+                }
+                
+                # Obtener URL de la cola desde secrets
+                queue_url = st.secrets["aws"]["sqs_queue_url"]
+                
+                # Enviar mensaje a SQS (las operaciones upload_fileobj son síncronas, 
+                # así que los archivos ya están en S3 en este punto)
+                Servicio.enviar_mensaje_sqs(queue_url, mensaje_sqs)
+                
                 status.update(label="¡Carga Completa!", state="complete", expanded=False)
                 
                 st.balloons()
                 st.success(f"Archivos recibidos. ID del reporte: {report_uuid}")
-                st.info(f"Se ha enviado la confirmación a {datos_formulario['Correo Electrónico']}")
+                st.info(f"El link para ver el reporte se le enviará a {email_final}")
 
             except Exception as e:
                 status.update(label="Error crítico", state="error")

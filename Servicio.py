@@ -20,6 +20,12 @@ class Data:
                                     aws_secret_access_key=self.SecretAccessKey,
                                     region_name=self.Region
                                 )
+        self.client_sqs=boto3.client(
+                                    'sqs',
+                                    aws_access_key_id=self.accessKeyID,
+                                    aws_secret_access_key=self.SecretAccessKey,
+                                    region_name=self.Region
+                                )
         
 
     def LeerDatos(self):
@@ -113,6 +119,21 @@ class Data:
         except Exception as e:
             print(f"Error descargando: {e}")
             return None
+
+    def enviar_mensaje_sqs(self, queue_url, mensaje):
+        """
+        Envía un mensaje JSON a una cola SQS.
+        mensaje: dict que se serializará a JSON string
+        """
+        try:
+            response = self.client_sqs.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(mensaje)
+            )
+            return response
+        except Exception as e:
+            print(f"Error enviando mensaje a SQS: {e}")
+            raise e
 
     
         
