@@ -40,7 +40,11 @@ def Ventana(MostrarVista,Servicio,Datos):
         
 
 @st.cache_resource
-def get_servicio_aws(report_id):
+def get_servicio_aws(report_id, _version=1):
+    """
+    Obtiene la instancia del servicio AWS.
+    _version se usa para invalidar el caché cuando cambia el código.
+    """
     print("Conectando a AWS...")
     return Data(report_id)
 
@@ -56,7 +60,7 @@ def get_diccionario_rutas(_Servicio,nombre_carpeta):
    
 def CodigoRed(report_id):
 
-    Servicio=get_servicio_aws(report_id)
+    Servicio=get_servicio_aws(report_id, _version=1)
     Datos=get_diccionario_rutas(_Servicio=Servicio,nombre_carpeta=report_id)
 # --- Lógica Principal de la Aplicación ---
     if 'mostrar_vista' not in st.session_state:
@@ -66,132 +70,245 @@ def CodigoRed(report_id):
         st.session_state.mostrar_vista=Pagina
         return st.session_state.mostrar_vista
 
+    # Header más pequeño
+    st.markdown("### Código de red")
+    st.caption(f'ID: {report_id}')
+    
+    # Selector de secciones como tabs horizontales (arriba)
+    opciones_vista = [
+        "Descripción",
+        "Cumplimiento", 
+        "Resumen Sistema",
+        "Potencia",
+        "Voltajes",
+        "Corrientes",
+        "Desbalances",
+        "Frecuencia",
+        "Flicker",
+        "Armonicos Voltaje",
+        "Armonicos Corriente"
+    ]
+    
+    # Obtener el índice de la vista actual
+    try:
+        indice_actual = opciones_vista.index(st.session_state.mostrar_vista)
+    except ValueError:
+        indice_actual = 0
+        st.session_state.mostrar_vista = opciones_vista[0]
+    
+    # Mapeo de nombres de UI a nombres internos
+    mapeo_vistas = {
+        "Descripción": "Descripcion",
+        "Cumplimiento": "Cumplimiento",
+        "Resumen Sistema": "Resumen Sistema",
+        "Potencia": "Potencia",
+        "Voltajes": "Voltajes",
+        "Corrientes": "Corrientes",
+        "Desbalances": "Desbalances",
+        "Frecuencia": "Frecuencia",
+        "Flicker": "Flicker",
+        "Armonicos Voltaje": "Armonicos Voltaje",
+        "Armonicos Corriente": "Armonicos Corriente"
+    }
+    
+    # Usar botones en dos filas que funcionan como tabs
+    # Agregar CSS para reducir el tamaño de fuente de los botones
+    st.markdown("""
+        <style>
+            div[data-testid="stButton"] > button[kind="primary"],
+            div[data-testid="stButton"] > button[kind="secondary"] {
+                font-size: 0.7rem !important;
+                padding: 0.3rem 0.4rem !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Dividir los botones en dos filas
+    num_botones = len(opciones_vista)
+    mitad = (num_botones + 1) // 2  # Dividir en dos filas (primera fila puede tener uno más)
+    
+    # Primera fila
+    primera_fila = opciones_vista[:mitad]
+    segunda_fila = opciones_vista[mitad:]
+    
+    cols_fila1 = st.columns(len(primera_fila))
+    for idx, col in enumerate(cols_fila1):
+        with col:
+            opcion = primera_fila[idx]
+            button_type = "primary" if opcion == st.session_state.mostrar_vista else "secondary"
+            
+            if st.button(
+                opcion,
+                key=f"tab_btn_{idx}",
+                use_container_width=True,
+                type=button_type
+            ):
+                st.session_state.mostrar_vista = opcion
+                st.rerun()
+    
+    # Segunda fila
+    if segunda_fila:
+        cols_fila2 = st.columns(len(segunda_fila))
+        for idx, col in enumerate(cols_fila2):
+            with col:
+                opcion = segunda_fila[idx]
+                button_type = "primary" if opcion == st.session_state.mostrar_vista else "secondary"
+                
+                if st.button(
+                    opcion,
+                    key=f"tab_btn_{mitad + idx}",
+                    use_container_width=True,
+                    type=button_type
+                ):
+                    st.session_state.mostrar_vista = opcion
+                    st.rerun()
+    
+    st.divider()
+    
+    # Renderizar el contenido abajo basado en la vista seleccionada
+    # Convertir el nombre de UI al nombre interno usando el mapeo
+    vista_interna = mapeo_vistas.get(st.session_state.mostrar_vista, st.session_state.mostrar_vista)
+    Ventana(MostrarVista=vista_interna, Servicio=Servicio, Datos=Datos)
+
+    # Sidebar para comentarios (Notas, Importante, Precaución)
     with st.sidebar:
-        st.title("Código de red")
-        st.subheader(f'ID: {report_id}')
+        st.markdown("### Comentarios")
         st.divider()
-        st.button("Descripción",on_click=MostrarVistaFunc,args=("Descripcion",),key="Descripcion",use_container_width=True)
-        st.button("Cumplimiento",on_click=MostrarVistaFunc,args=("Cumplimiento",),key="Cumplimiento",use_container_width=True)
-        st.button("Resumen Sistema",on_click=MostrarVistaFunc,args=("Resumen Sistema",),key="Resumen Sistema",use_container_width=True)
-        st.button("Potencia",on_click=MostrarVistaFunc,args=("Potencia",),key="Potencia",use_container_width=True)
-        st.button("Voltajes",on_click=MostrarVistaFunc,args=("Voltajes",),key="Voltajes",use_container_width=True)
-        st.button("Corrientes",on_click=MostrarVistaFunc,args=("Corrientes",),key="Corrientes",use_container_width=True)
-        st.button("Desbalances",on_click=MostrarVistaFunc,args=("Desbalances",),key="Desbalances",use_container_width=True)
-        st.button("Frecuencia",on_click=MostrarVistaFunc,args=("Frecuencia",),key="Frecuencia",use_container_width=True)
-        st.button("Flicker",on_click=MostrarVistaFunc,args=("Flicker",),key="Flicker",use_container_width=True)
-        st.button("Armonicos Voltaje",on_click=MostrarVistaFunc,args=("Armonicos Voltaje",),key="Armonicos Voltaje",use_container_width=True)
-        st.button("Armonicos Corriente",on_click=MostrarVistaFunc,args=("Armonicos Corriente",),key="Armonicos Corriente",use_container_width=True)
-
         
+        rutaComentarios=Datos["Comentarios"]["CodigoRed"]
+        
+        # Inicializar clave para el JSON completo
+        json_key = f"comentarios_json_{rutaComentarios}"
 
-    with st.container():
-        col2, col3 = st.columns([0.75,0.25])
+        SeccionNotas=Comentarios(titulo="Notas",seccion_json="nota",rutaDatos=rutaComentarios,servicio=Servicio)
+        json_actualizado = SeccionNotas.render()
+
+        SeccionImportante=Comentarios(titulo="Importante",seccion_json="importante",rutaDatos=rutaComentarios,servicio=Servicio)
+        json_actualizado = SeccionImportante.render()
+
+        SeccionPrecaucion=Comentarios(titulo="Precaución",seccion_json="precaucion",rutaDatos=rutaComentarios,servicio=Servicio)
+        json_actualizado = SeccionPrecaucion.render()
+        
+        # Obtener el JSON completo actualizado del session_state
+        if json_key in st.session_state:
+            json_completo_final = st.session_state[json_key]
+        else:
+            json_completo_final = json_actualizado
+        
+        st.divider()
+        
+        # Inicializar estado del modal
+        if 'mostrar_modal_pdf' not in st.session_state:
+            st.session_state.mostrar_modal_pdf = False
+        if 'pdf_enviado' not in st.session_state:
+            st.session_state.pdf_enviado = False
+        if 'email_pdf_enviado' not in st.session_state:
+            st.session_state.email_pdf_enviado = ""
+        
+        # Mostrar mensaje de éxito si ya se envió
+        if st.session_state.pdf_enviado:
+            st.success(f"✅ **Solicitud enviada**\n\n"
+                      f"PDF será enviado a:\n"
+                      f"**{st.session_state.email_pdf_enviado}**\n\n"
+                      f"📬 Recibirá el correo en los próximos minutos.")
+            if st.button("Cerrar", key="cerrar_mensaje_pdf"):
+                st.session_state.pdf_enviado = False
+                st.session_state.email_pdf_enviado = ""
+                st.rerun()
+        
+        # Botón para abrir modal
+        if not st.session_state.pdf_enviado:
+            if st.button("Generar PDF con comentarios actualizados", use_container_width=True):
+                st.session_state.mostrar_modal_pdf = True
+                st.rerun()
+        
+        # Modal para solicitar email
+        if st.session_state.mostrar_modal_pdf and not st.session_state.pdf_enviado:
+            st.info("📧 Ingrese el correo para enviar el PDF.")
             
-        with col2:
-            with st.container():
-                Ventana(MostrarVista=st.session_state.mostrar_vista,Servicio=Servicio,Datos=Datos)
-        with col3:
-            
-            with st.container():
-                rutaComentarios=Datos["Comentarios"]["CodigoRed"]
-
-                SeccionNotas=Comentarios(titulo="Notas",seccion_json="nota",rutaDatos=rutaComentarios,servicio=Servicio)
-                NotasReporte=SeccionNotas.render()
-                NotasReporte
-
-                SeccionImportante=Comentarios(titulo="Importante",seccion_json="importante",rutaDatos=rutaComentarios,servicio=Servicio)
-                ImportanteReporte=SeccionImportante.render()
-                ImportanteReporte
-
-                SeccionPrecaucion=Comentarios(titulo="Precaución",seccion_json="precaucion",rutaDatos=rutaComentarios,servicio=Servicio)
-                PrecaucionReporte=SeccionPrecaucion.render()
-                PrecaucionReporte
-
-
-                # Inicializar estado del modal
-                if 'mostrar_modal_pdf' not in st.session_state:
+            with st.form(key="form_modal_pdf", clear_on_submit=False):
+                email_pdf = st.text_input(
+                    "Correo Electrónico",
+                    placeholder="ejemplo@correo.com",
+                    type="default"
+                )
+                
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    enviar_btn = st.form_submit_button("✅ Enviar", use_container_width=True, type="primary")
+                with col_btn2:
+                    cancelar_btn = st.form_submit_button("❌ Cancelar", use_container_width=True)
+                
+                if cancelar_btn:
                     st.session_state.mostrar_modal_pdf = False
-                if 'pdf_enviado' not in st.session_state:
-                    st.session_state.pdf_enviado = False
-                if 'email_pdf_enviado' not in st.session_state:
-                    st.session_state.email_pdf_enviado = ""
+                    st.rerun()
                 
-                # Mostrar mensaje de éxito si ya se envió
-                if st.session_state.pdf_enviado:
-                    st.success(f"✅ **Solicitud de generación de PDF enviada exitosamente**\n\n"
-                              f"El reporte PDF con los comentarios actualizados será generado y enviado a:\n"
-                              f"**{st.session_state.email_pdf_enviado}**\n\n"
-                              f"📬 Recibirá el correo con el PDF en los próximos minutos.")
-                    if st.button("Cerrar", key="cerrar_mensaje_pdf"):
-                        st.session_state.pdf_enviado = False
-                        st.session_state.email_pdf_enviado = ""
-                        st.rerun()
-                
-                # Botón para abrir modal
-                if not st.session_state.pdf_enviado:
-                    if st.button("Generar PDF con comentarios actualizados"):
-                        st.session_state.mostrar_modal_pdf = True
-                        st.rerun()
-                
-                # Modal para solicitar email
-                if st.session_state.mostrar_modal_pdf and not st.session_state.pdf_enviado:
-                    with st.container():
-                        st.info("📧 Por favor, ingrese el correo electrónico al cual desea enviar el reporte PDF.")
-                        
-                        with st.form(key="form_modal_pdf", clear_on_submit=False):
-                            email_pdf = st.text_input(
-                                "Correo Electrónico",
-                                placeholder="ejemplo@correo.com",
-                                type="default"
-                            )
-                            
-                            col_btn1, col_btn2 = st.columns(2)
-                            with col_btn1:
-                                enviar_btn = st.form_submit_button("✅ Enviar", use_container_width=True, type="primary")
-                            with col_btn2:
-                                cancelar_btn = st.form_submit_button("❌ Cancelar", use_container_width=True)
-                            
-                            if cancelar_btn:
-                                st.session_state.mostrar_modal_pdf = False
-                                st.rerun()
-                            
-                            if enviar_btn:
-                                # Validar email
-                                if not email_pdf or email_pdf.strip() == "":
-                                    st.error("Por favor, ingrese un correo electrónico válido.")
-                                elif "@" not in email_pdf:
-                                    st.error("Por favor, ingrese un correo electrónico válido.")
+                if enviar_btn:
+                    # Validar email
+                    if not email_pdf or email_pdf.strip() == "":
+                        st.error("Por favor, ingrese un correo electrónico válido.")
+                    elif "@" not in email_pdf:
+                        st.error("Por favor, ingrese un correo electrónico válido.")
+                    else:
+                        try:
+                            # Validar que hay al menos 1 item en cada sección
+                            if json_key not in st.session_state:
+                                st.error("No se encontraron comentarios para guardar. Por favor, recargue la página.")
+                            else:
+                                json_para_guardar = st.session_state[json_key]
+                                
+                                # Validar que cada sección tenga al menos 1 item
+                                secciones_requeridas = ["nota", "importante", "precaucion"]
+                                errores_validacion = []
+                                
+                                for seccion in secciones_requeridas:
+                                    contenido = json_para_guardar.get(seccion, [])
+                                    if not isinstance(contenido, list) or len(contenido) == 0:
+                                        errores_validacion.append(f"La sección '{seccion}' debe tener al menos un item.")
+                                
+                                if errores_validacion:
+                                    st.error("❌ " + " ".join(errores_validacion))
                                 else:
-                                    try:
-                                        # Guardar comentarios actualizados
+                                    # Verificar que las variables estén disponibles
+                                    if not rutaComentarios:
+                                        st.error("No se pudo obtener la ruta de comentarios.")
+                                    elif not json_para_guardar:
+                                        st.error("No hay datos de comentarios para guardar.")
+                                    else:
+                                        # Guardar comentarios actualizados en S3
                                         Servicio.GuardarDatos(
-                                            NotasReporte,
-                                            ImportanteReporte,
-                                            PrecaucionReporte
+                                            json_para_guardar,
+                                            rutaComentarios
                                         )
-                                        
-                                        # Construir mensaje para SQS PDF
-                                        mensaje_pdf_sqs = {
-                                            "report_id": report_id,
-                                            "bucket": Servicio.bucket,
-                                            "region": Servicio.Region,
-                                            "report_type": "codigo_red",
-                                            "email": email_pdf.strip()
-                                        }
-                                        
-                                        # Obtener URL de la cola PDF desde secrets
-                                        queue_url_pdf = st.secrets["aws"]["sqs_pdf_queue_url"]
-                                        
-                                        # Enviar mensaje a SQS
-                                        Servicio.enviar_mensaje_sqs(queue_url_pdf, mensaje_pdf_sqs)
-                                        
-                                        # Cerrar modal y marcar como enviado
-                                        st.session_state.mostrar_modal_pdf = False
-                                        st.session_state.pdf_enviado = True
-                                        st.session_state.email_pdf_enviado = email_pdf.strip()
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"❌ Error al enviar la solicitud: {str(e)}\n\nPor favor, intente nuevamente.")
+                                    
+                                    # Construir mensaje para SQS PDF
+                                    mensaje_pdf_sqs = {
+                                        "report_id": report_id,
+                                        "bucket": Servicio.bucket,
+                                        "region": Servicio.Region,
+                                        "report_type": "codigo_red",
+                                        "email": email_pdf.strip()
+                                    }
+                                    
+                                    # Obtener URL de la cola PDF desde secrets
+                                    queue_url_pdf = st.secrets["aws"]["sqs_pdf_queue_url"]
+                                    
+                                    # Enviar mensaje a SQS
+                                    Servicio.enviar_mensaje_sqs(queue_url_pdf, mensaje_pdf_sqs)
+                                    
+                                    # Cerrar modal y marcar como enviado
+                                    st.session_state.mostrar_modal_pdf = False
+                                    st.session_state.pdf_enviado = True
+                                    st.session_state.email_pdf_enviado = email_pdf.strip()
+                                    st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error al enviar la solicitud: {str(e)}\n\nPor favor, intente nuevamente.")
+
+    # El contenido ya se renderiza dentro de las tabs arriba
+    # No necesitamos renderizarlo de nuevo aquí
 
                 
 

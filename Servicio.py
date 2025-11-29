@@ -32,15 +32,28 @@ class Data:
         data=json.load(open('ArchivosJson/DB_OrigenCodigoRed.json', 'r', encoding='utf-8'))
         return data
     
-    def GuardarDatos(self,com1,com3,com4):
-        datos={
-            "ComentarioNotas":com1,
-            "ComentarioImportante":com3,
-            "ComentarioPrecaucion":com4
-            }
-        nombreArchivo='ArchivosJson/DB_ComentariosCodigoRed.json'
-        with open(nombreArchivo,'w', encoding='utf-8') as archivo:
-            json.dump(datos,archivo,indent=4,ensure_ascii=False)
+    def GuardarDatos(self, json_completo, ruta_s3):
+        """
+        Guarda el JSON completo de comentarios en S3.
+        
+        Args:
+            json_completo (dict): El JSON completo con todas las secciones
+            ruta_s3 (str): La ruta completa en S3 donde se guardará el JSON
+        """
+        try:
+            # Convertir el JSON a bytes
+            json_bytes = json.dumps(json_completo, indent=4, ensure_ascii=False).encode('utf-8')
+            
+            # Subir a S3
+            self.client_s3.put_object(
+                Bucket=self.bucket,
+                Key=ruta_s3,
+                Body=json_bytes,
+                ContentType='application/json'
+            )
+        except Exception as e:
+            print(f"Error guardando datos en S3: {e}")
+            raise e
 
     def obtener_rutas_actualizadas(self):
         """

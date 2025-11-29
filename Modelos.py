@@ -76,60 +76,123 @@ class Comentarios:
         # 1. Mostrar el título en la UI
         st.subheader(self.titulo_ui)
 
-        # 2. Descargar el JSON crudo desde S3
-        # Como tu clase Data devuelve 'bytes' para archivos desconocidos, aquí los procesamos.
-        bytes_data = self.servicio.descargar_archivo_s3(self.ruta_archivo_s3)
+        # 2. Cargar JSON completo una vez y guardarlo en session_state
+        json_key = f"comentarios_json_{self.ruta_archivo_s3}"
+        if json_key not in st.session_state:
+            bytes_data = self.servicio.descargar_archivo_s3(self.ruta_archivo_s3)
+            
+            if not bytes_data:
+                st.error("No se pudo cargar el archivo de comentarios.")
+                return None
+            
+            try:
+                data_dict = json.loads(bytes_data.decode('utf-8'))
+                st.session_state[json_key] = data_dict
+                st.session_state[f"ruta_comentarios_{self.ruta_archivo_s3}"] = self.ruta_archivo_s3
+            except json.JSONDecodeError:
+                st.error("El archivo descargado no tiene un formato JSON válido.")
+                return None
+            except Exception as e:
+                st.error(f"Error procesando comentarios: {e}")
+                return None
         
-        if not bytes_data:
-            st.error("No se pudo cargar el archivo de comentarios.")
-            return
+        # 3. Obtener el JSON completo del session_state
+        data_dict = st.session_state[json_key]
+        
+        # 4. Extraer la sección solicitada
+        contenido_raw = data_dict.get(self.seccion_json, None)
 
-        try:
-            # 3. Parsear los bytes a Diccionario Python
-            data_dict = json.loads(bytes_data.decode('utf-8'))
+        if contenido_raw is None:
+            st.warning(f"No se encontró la sección '{self.seccion_json}' en el reporte.")
+            return None
+
+        # 5. Si es una lista (nota, importante, precaucion), renderizar items individuales
+        if isinstance(contenido_raw, list):
+            items_editados = []
             
-            # 4. Extraer la sección solicitada
-            contenido_raw = data_dict.get(self.seccion_json, None)
-
-            if contenido_raw is None:
-                st.warning(f"No se encontró la sección '{self.seccion_json}' en el reporte.")
-                return
-
-            # 5. Lógica de Formateo Inteligente
-            texto_final = ""
-
-            if isinstance(contenido_raw, list):
-                # CASO A: Es una lista (nota, importante, precaucion)
-                for item in contenido_raw:
-                    titulo_nota = item.get('title', 'Sin Título')
-                    cuerpo_nota = item.get('content', '')
+            # Renderizar cada item individualmente
+            for idx, item in enumerate(contenido_raw):
+                with st.container():
+                    # Mostrar el título como referencia (solo lectura)
+                    titulo_original = item.get('title', f'Item {idx + 1}')
+                    st.caption(f"📝 {titulo_original}")
                     
-                    # Construimos un string formateado
-                    texto_final += f"- {titulo_nota.upper()}:\n{cuerpo_nota}\n\n"
+                    # Text area para editar solo el content
+                    content_key = f"{self.seccion_json}_content_{idx}"
+                    content_editado = st.text_area(
+                        label="",
+                        value=item.get('content', ''),
+                        height=150,
+                        key=content_key,
+                        label_visibility="collapsed"
+                    )
                     
-                    # (Opcional) Si quieres incluir referencias:
-                    # refs = ", ".join(item.get('references', []))
-                    # texto_final += f"   (Refs: {refs})\n\n"
+                    # Botón para eliminar (solo si hay más de 1 item)
+                    if len(contenido_raw) > 1:
+                        button_key = f"delete_{self.seccion_json}_{idx}"
+                        # Estilo CSS para hacer el botón rojo
+                        st.markdown(f"""
+                            <style>
+                                button[data-testid*="{button_key}"] {{
+                                    background-color: #ff4444 !important;
+                                    color: white !important;
+                                    border-color: #cc0000 !important;
+                                }}
+                                button[data-testid*="{button_key}"]:hover {{
+                                    background-color: #cc0000 !important;
+                                }}
+                            </style>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button("Eliminar", key=button_key, 
+                                   type="secondary", use_container_width=True,
+                                   help="Eliminar esta nota"):
+                            # Eliminar el item de la lista
+                            contenido_raw.pop(idx)
+                            st.session_state[json_key][self.seccion_json] = contenido_raw
+                            st.rerun()
+                    
+                    # Guardar el item editado
+                    item_editado = item.copy()
+                    item_editado['content'] = content_editado
+                    items_editados.append(item_editado)
+                
+                st.divider()
             
-            elif isinstance(contenido_raw, str):
-                # CASO B: Es texto plano (executive_summary, technical_summary)
-                texto_final = contenido_raw
+            # Actualizar el JSON en session_state con los cambios
+            data_dict[self.seccion_json] = items_editados
+            st.session_state[json_key] = data_dict
             
-            else:
-                texto_final = str(contenido_raw)
-
-            # 6. Renderizar en el Text Area
-            # height=300 le da buen espacio, disabled=True evita que el usuario lo borre por error
-            texto_usuario=st.text_area(
-                label=f"Contenido de {self.seccion_json}", 
-                value=texto_final, 
+            # Botón para agregar nueva nota
+            if st.button(f"➕ Agregar nueva {self.seccion_json}", key=f"add_{self.seccion_json}"):
+                nuevo_item = {
+                    "title": f"Nueva {self.seccion_json}",
+                    "content": "",
+                    "priority": self.seccion_json,
+                    "references": []
+                }
+                contenido_raw.append(nuevo_item)
+                st.session_state[json_key][self.seccion_json] = contenido_raw
+                st.rerun()
+            
+            # Retornar el JSON completo actualizado
+            return st.session_state[json_key]
+        
+        # 6. Si es texto plano (executive_summary, technical_summary)
+        elif isinstance(contenido_raw, str):
+            texto_key = f"{self.seccion_json}_text"
+            texto_editado = st.text_area(
+                label="",
+                value=contenido_raw,
                 height=500,
-                label_visibility="collapsed" # Ocultamos el label pequeño porque ya pusimos subheader
+                key=texto_key,
+                label_visibility="collapsed"
             )
-
-            return texto_usuario
-
-        except json.JSONDecodeError:
-            st.error("El archivo descargado no tiene un formato JSON válido.")
-        except Exception as e:
-            st.error(f"Error procesando comentarios: {e}")
+            # Actualizar en session_state
+            data_dict[self.seccion_json] = texto_editado
+            st.session_state[json_key] = data_dict
+            return st.session_state[json_key]
+        
+        else:
+            st.warning(f"Tipo de contenido no soportado para edición: {type(contenido_raw)}")
+            return None
