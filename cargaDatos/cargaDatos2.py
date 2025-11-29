@@ -150,7 +150,7 @@ def CargarDatos2():
         bucket = Servicio.bucket
 
         with st.status(f"Generando reporte ID: {report_uuid}...", expanded=True) as status:
-            #try:
+            try:
                 # ---------------------------------------------------------
                 # PASO 1: Subir Archivo Principal a "raw_data"
                 # ---------------------------------------------------------
@@ -229,6 +229,6 @@ def CargarDatos2():
                 st.success(f"Archivos recibidos. ID del reporte: {report_uuid}")
                 st.info(f"Se ha enviado la confirmación a {datos_formulario['Correo Electrónico']}")
 
-            #except Exception as e:
-                #status.update(label="Error crítico", state="error")
-                #st.error(f"Hubo un error al conectar con AWS: {str(e)}")
+            except Exception as e:
+                status.update(label="Error crítico", state="error")
+                st.error(f"Hubo un error al conectar con AWS: {str(e)}")
