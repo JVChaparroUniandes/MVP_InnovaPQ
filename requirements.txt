@@ -2,3 +2,9 @@ streamlit
 pandas
 openpyxl
 boto3
+uuid
+io
+json
+re
+datetime
+PIL
