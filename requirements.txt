@@ -2,7 +2,4 @@ streamlit
 pandas
 openpyxl
 boto3
-json
-re
-datetime
-PIL
+Pillow
