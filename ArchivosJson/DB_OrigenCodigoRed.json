@@ -8,7 +8,8 @@
     "CumplimientoRed":{
         "Principal":"Cumplimiento Código de Red/tablas/resumen_cumplimiento_codigo_red.xlsx",
         "limaplicables":"Cumplimiento Código de Red/tablas/limites_aplicables_codigo_red.xlsx",
-        "limdatd":"Cumplimiento Código de Red/tablas/limites_datd_dai_porcentaje_il.xlsx"
+        "limdatd":"Cumplimiento Código de Red/tablas/limites_datd_dai_porcentaje_il.xlsx",
+        "ResumenRapido":"Cumplimiento Código de Red/tablas/informe_rapido.xlsx"
     },
     "Unifilar":"input/diagrama_unifilar.png",
     "Resumen":{
@@ -35,7 +36,16 @@
         "PotenciaDistribucionReactiva":"Potencias/histogramas/distribución_potencia_reactiva.png",
         "PotenciaDistribucionAparente":"Potencias/histogramas/distribución_potencia_aparente.png",
         "PotenciaDistribucionFp":"FP (Factor de Potencia)/histogramas/distribución_factor_de_potencia.png",
-        "PotenciaDescriptivas":"Potencias/tablas/descriptivos_potencias.xlsx"
+        "PotenciaDescriptivas":"Potencias/tablas/descriptivos_potencias.xlsx",
+        "PotenciaDemandas":"Potencias/tablas/resumen_totales_demandas.xlsx",
+        "PotenciaEnergia":"Potencias/tablas/resumen_totales_energia.xlsx",
+        "IndicadorFC":"Potencias/indicadores/gauge_factor_carga.png",
+        "IndicadorFP":"FP (Factor de Potencia)/indicadores/gauge_factor_potencia.png",
+        "EnergiaActiva":"Potencias/series_tiempo/energia_activa_diaria.png",
+        "EnergiaReactiva":"Potencias/series_tiempo/energia_reactiva_diaria.png",
+        "PerfilDiario":"Potencias/series_tiempo/perfil_diario_demanda.png",
+        "Heatmap":"Potencias/series_tiempo/heatmap_demanda_horaria.png",
+        "Demanda3D":"Potencias/series_tiempo/demanda_3d.png"
     },
     "Voltaje":{
         "VoltajeDistrLL":"Voltajes RMS/histogramas/distribución_tensiones_l-l.png",
@@ -90,8 +100,16 @@
         "ArmonicosITabla":"Armónicas en Corrientes/tablas/descriptivos_thdi.xlsx",
         "ArmonicosITablaP95":"Armónicas en Corrientes/tablas/armonicas_corriente_p95_il.xlsx"
     },
+    "FactorK":{
+        "FKCuartil":"Factor K/tablas/factor_k_quantile.xlsx",
+        "FKDescriptivo":"Factor K/tablas/factor_k_descriptivo.xlsx",
+        "FKSerie":"Factor K/series_tiempo/factor_k.png",
+        "FKHistograma":"Factor K/histogramas/distribución_factor_k.png"
+    },
     "Comentarios":{
-        "CodigoRed":"out_llm/codigo_red.json"
+        "CodigoRed":"out_llm/codigo_red.json",
+        "Energia":"out_llm/energia.json",
+        "PQ":"out_llm/pq.json"
 
     }
 
