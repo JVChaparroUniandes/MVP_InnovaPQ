@@ -55,7 +55,7 @@ def Energia(report_id):
         return st.session_state.mostrar_vista
 
     # Header más pequeño
-    st.markdown("### Código de red")
+    st.markdown("### Energía")
     st.caption(f'ID: {report_id}')
     
     # Selector de secciones como tabs horizontales (arriba)
@@ -201,13 +201,19 @@ def Energia(report_id):
         
         # Modal para solicitar email
         if st.session_state.mostrar_modal_pdf and not st.session_state.pdf_enviado:
-            st.info("📧 Ingrese el correo para enviar el PDF.")
+            st.info("📧 Ingrese el correo y la fecha del reporte para enviar el PDF.")
             
             with st.form(key="form_modal_pdf", clear_on_submit=False):
                 email_pdf = st.text_input(
                     "Correo Electrónico",
                     placeholder="ejemplo@correo.com",
                     type="default"
+                )
+                
+                fecha_reporte = st.date_input(
+                    "Fecha del Reporte",
+                    value=None,
+                    help="Seleccione la fecha que aparecerá en el reporte PDF"
                 )
                 
                 col_btn1, col_btn2 = st.columns(2)
@@ -226,6 +232,8 @@ def Energia(report_id):
                         st.error("Por favor, ingrese un correo electrónico válido.")
                     elif "@" not in email_pdf:
                         st.error("Por favor, ingrese un correo electrónico válido.")
+                    elif fecha_reporte is None:
+                        st.error("Por favor, seleccione la fecha del reporte.")
                     else:
                         try:
                             # Validar que hay al menos 1 item en cada sección
@@ -259,12 +267,16 @@ def Energia(report_id):
                                         )
                                     
                                     # Construir mensaje para SQS PDF
+                                    # Convertir fecha a formato YYYY-MM-DD
+                                    fecha_formato = fecha_reporte.strftime("%Y-%m-%d")
+                                    
                                     mensaje_pdf_sqs = {
                                         "report_id": report_id,
                                         "bucket": Servicio.bucket,
                                         "region": Servicio.Region,
-                                        "report_type": "codigo_red",
-                                        "email": email_pdf.strip()
+                                        "report_type": "energia",
+                                        "email": email_pdf.strip(),
+                                        "report_date": fecha_formato
                                     }
                                     
                                     # Obtener URL de la cola PDF desde secrets
