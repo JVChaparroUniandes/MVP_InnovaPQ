@@ -154,11 +154,10 @@ def CargarDatos2():
         st.info("📧 Por favor, confirme o ingrese el correo electrónico al cual desea enviar el reporte.")
         
         with st.form(key="form_modal_email_carga", clear_on_submit=False):
-            # Prellenar con el email del formulario si existe
-            email_prellenado = datos_formulario.get("Correo Electrónico", "")
+            # Campo de correo vacío (no se prellena automáticamente)
             email_envio = st.text_input(
                 "Correo Electrónico para envío del reporte",
-                value=email_prellenado,
+                value="",
                 placeholder="ejemplo@correo.com",
                 type="default"
             )
