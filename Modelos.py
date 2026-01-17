@@ -120,7 +120,7 @@ class Comentarios:
                     # Text area para editar solo el content
                     content_key = f"{self.seccion_json}_content_{idx}"
                     content_editado = st.text_area(
-                        label="",
+                        label=f"Contenido del item {idx + 1}",
                         value=item.get('content', ''),
                         height=150,
                         key=content_key,

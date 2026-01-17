@@ -268,14 +268,14 @@ def PQ(report_id):
                             else:
                                 json_para_guardar = st.session_state[json_key]
                                 
-                                # Validar que cada sección tenga al menos 1 item
-                                secciones_requeridas = ["nota", "importante", "precaucion"]
+                                # Validar que solo la sección "nota" tenga al menos 1 item
+                                # "importante" y "precaución" son opcionales según los prompts del LLM
                                 errores_validacion = []
                                 
-                                for seccion in secciones_requeridas:
-                                    contenido = json_para_guardar.get(seccion, [])
-                                    if not isinstance(contenido, list) or len(contenido) == 0:
-                                        errores_validacion.append(f"La sección '{seccion}' debe tener al menos un item.")
+                                # Solo validar "nota" como requerida
+                                contenido_nota = json_para_guardar.get("nota", [])
+                                if not isinstance(contenido_nota, list) or len(contenido_nota) == 0:
+                                    errores_validacion.append(f"La sección 'nota' debe tener al menos un item.")
                                 
                                 if errores_validacion:
                                     st.error("❌ " + " ".join(errores_validacion))
@@ -291,31 +291,46 @@ def PQ(report_id):
                                             json_para_guardar,
                                             rutaComentarios
                                         )
-                                    
-                                    # Construir mensaje para SQS PDF
-                                    # Convertir fecha a formato YYYY-MM-DD
-                                    fecha_formato = fecha_reporte.strftime("%Y-%m-%d")
-                                    
-                                    mensaje_pdf_sqs = {
-                                        "report_id": report_id,
-                                        "bucket": Servicio.bucket,
-                                        "region": Servicio.Region,
-                                        "report_type": "pq",
-                                        "email": email_pdf.strip(),
-                                        "report_date": fecha_formato
-                                    }
-                                    
-                                    # Obtener URL de la cola PDF desde secrets
-                                    queue_url_pdf = st.secrets["aws"]["sqs_pdf_queue_url"]
-                                    
-                                    # Enviar mensaje a SQS
-                                    Servicio.enviar_mensaje_sqs(queue_url_pdf, mensaje_pdf_sqs)
-                                    
-                                    # Cerrar modal y marcar como enviado
-                                    st.session_state.mostrar_modal_pdf = False
-                                    st.session_state.pdf_enviado = True
-                                    st.session_state.email_pdf_enviado = email_pdf.strip()
-                                    st.rerun()
+                                        
+                                        # Construir mensaje para SQS PDF
+                                        # Convertir fecha a formato YYYY-MM-DD
+                                        fecha_formato = fecha_reporte.strftime("%Y-%m-%d")
+                                        
+                                        mensaje_pdf_sqs = {
+                                            "report_id": report_id,
+                                            "bucket": Servicio.bucket,
+                                            "region": Servicio.Region,
+                                            "report_type": "pq",
+                                            "email": email_pdf.strip(),
+                                            "report_date": fecha_formato
+                                        }
+                                        
+                                        # Validar que el mensaje tenga todos los campos requeridos
+                                        campos_requeridos = ["report_id", "bucket", "region", "report_type", "email", "report_date"]
+                                        campos_faltantes = [campo for campo in campos_requeridos if not mensaje_pdf_sqs.get(campo)]
+                                        
+                                        if campos_faltantes:
+                                            st.error(f"❌ Faltan campos requeridos en el mensaje: {', '.join(campos_faltantes)}")
+                                        else:
+                                            # Obtener URL de la cola PDF desde secrets
+                                            queue_url_pdf = st.secrets["aws"]["sqs_pdf_queue_url"]
+                                            
+                                            if not queue_url_pdf:
+                                                st.error("❌ No se encontró la URL de la cola SQS en los secrets. Verifique la configuración.")
+                                            else:
+                                                # Enviar mensaje a SQS
+                                                try:
+                                                    Servicio.enviar_mensaje_sqs(queue_url_pdf, mensaje_pdf_sqs)
+                                                    st.success(f"✅ Mensaje enviado correctamente a SQS para generar PDF")
+                                                    
+                                                    # Cerrar modal y marcar como enviado SOLO si el envío fue exitoso
+                                                    st.session_state.mostrar_modal_pdf = False
+                                                    st.session_state.pdf_enviado = True
+                                                    st.session_state.email_pdf_enviado = email_pdf.strip()
+                                                    st.rerun()
+                                                except Exception as sqs_error:
+                                                    st.error(f"❌ Error al enviar mensaje a SQS: {str(sqs_error)}")
+                                                    raise sqs_error
                         except Exception as e:
                             st.error(f"❌ Error al enviar la solicitud: {str(e)}\n\nPor favor, intente nuevamente.")
 
