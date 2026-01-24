@@ -21,6 +21,53 @@ def get_servicio_base():
     # Instanciamos sin carpeta específica
     return Data(folder="reports/")
 
+# --- 2. HELPER FUNCTIONS (Message Builder - Single Responsibility) ---
+def build_sqs_message(
+    report_id: str,
+    bucket: str,
+    region: str,
+    input_key: str,
+    email: str,
+    report_base_url: str,
+    nominal_voltage: float,
+    nominal_voltage_unit: str,
+    profile: str,
+    skip_llm: bool = True
+) -> dict:
+    """
+    Construye el mensaje SQS para el procesamiento de reportes.
+    
+    Args:
+        report_id: ID único del reporte
+        bucket: Nombre del bucket S3
+        region: Región de AWS
+        input_key: Ruta del archivo de entrada en S3
+        email: Email para notificaciones
+        report_base_url: URL base para los reportes
+        nominal_voltage: Tensión nominal del sistema
+        nominal_voltage_unit: Unidad de la tensión nominal (kV o V)
+        profile: Perfil técnico del medidor
+        skip_llm: Si es True, omite la generación de reportes LLM (default: True - skip LLM by default)
+    
+    Returns:
+        dict: Mensaje SQS formateado
+    """
+    return {
+        "report_id": report_id,
+        "bucket": bucket,
+        "region": region,
+        "input_key": input_key,
+        "img_format": "png",
+        "dpi": 200,
+        "output_mode": "s3",
+        "email": email,
+        "report_base_url": report_base_url,
+        "nominal_voltage": nominal_voltage,
+        "nominal_voltage_unit": nominal_voltage_unit,
+        "profile": profile,
+        "skip_llm": skip_llm
+    }
+
 def CargarDatos2():
     # Inicializamos el servicio
     Servicio = get_servicio_base()
@@ -148,6 +195,8 @@ def CargarDatos2():
         st.session_state.email_confirmado = None
     if 'procesar_carga' not in st.session_state:
         st.session_state.procesar_carga = False
+    if 'skip_llm' not in st.session_state:
+        st.session_state.skip_llm = True  # Default: LLM IS skipped (only generate tables/graphs)
     
     # Modal para confirmar/cambiar email (se muestra después de validación)
     if st.session_state.mostrar_modal_email and not st.session_state.procesar_carga:
@@ -162,6 +211,15 @@ def CargarDatos2():
                 type="default"
             )
             
+            st.divider()
+            
+            # Toggle para skip LLM
+            skip_llm_toggle = st.toggle(
+                "⏭️ Omitir generación de reportes LLM",
+                value=st.session_state.skip_llm,
+                help="Si está activado, se generarán solo las tablas y gráficos sin los reportes de análisis LLM. Por defecto está activado (se omite LLM)."
+            )
+            
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
                 confirmar_btn = st.form_submit_button("✅ Confirmar y Procesar", use_container_width=True, type="primary")
@@ -172,6 +230,7 @@ def CargarDatos2():
                 st.session_state.mostrar_modal_email = False
                 st.session_state.email_confirmado = None
                 st.session_state.procesar_carga = False
+                st.session_state.skip_llm = True  # Resetear a default (skip LLM)
                 st.rerun()
             
             if confirmar_btn:
@@ -182,6 +241,7 @@ def CargarDatos2():
                     st.error("Por favor, ingrese un correo electrónico válido.")
                 else:
                     st.session_state.email_confirmado = email_envio.strip()
+                    st.session_state.skip_llm = skip_llm_toggle  # Guardar preferencia del usuario
                     st.session_state.mostrar_modal_email = False
                     st.session_state.procesar_carga = True
                     st.rerun()
@@ -331,7 +391,7 @@ def CargarDatos2():
                 if tension_valor is None:
                     raise ValueError("No se pudo extraer la tensión nominal del punto de medición. Verifique el formato.")
                 
-                # Construir mensaje para SQS
+                # Construir mensaje para SQS usando el helper function
                 # input_key debe incluir la ruta raw_data/ ya que el report_id tiene el prefijo report{uuid}
                 input_key_path = f"{file_main.name}"
                 
@@ -343,20 +403,22 @@ def CargarDatos2():
                     # Por ahora usar el mismo, pero se puede configurar en secrets
                     report_base_url = st.secrets["aws"].get("report_base_url", "http://localhost:8501")
                 
-                mensaje_sqs = {
-                    "report_id": f"report{report_uuid}",
-                    "bucket": bucket,
-                    "region": Servicio.Region,
-                    "input_key": input_key_path,
-                    "img_format": "png",
-                    "dpi": 200,
-                    "output_mode": "s3",
-                    "email": email_final,  # Usar el email confirmado del modal
-                    "report_base_url": report_base_url,
-                    "nominal_voltage": tension_valor,
-                    "nominal_voltage_unit": tension_unidad,
-                    "profile": datos_formulario["_perfil_tecnico"]
-                }
+                # Obtener skip_llm del session state (default: True - skip LLM by default)
+                skip_llm_value = st.session_state.get("skip_llm", True)
+                
+                # Construir mensaje usando la función helper (Single Responsibility)
+                mensaje_sqs = build_sqs_message(
+                    report_id=f"report{report_uuid}",
+                    bucket=bucket,
+                    region=Servicio.Region,
+                    input_key=input_key_path,
+                    email=email_final,  # Usar el email confirmado del modal
+                    report_base_url=report_base_url,
+                    nominal_voltage=tension_valor,
+                    nominal_voltage_unit=tension_unidad,
+                    profile=datos_formulario["_perfil_tecnico"],
+                    skip_llm=skip_llm_value
+                )
                 
                 # Obtener URL de la cola desde secrets
                 queue_url = st.secrets["aws"]["sqs_queue_url"]
